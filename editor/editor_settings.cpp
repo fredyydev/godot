@@ -43,7 +43,7 @@
 #include "core/object/class_db.h"
 #include "core/os/keyboard.h"
 #include "core/os/os.h"
-#include "core/string/translation.h"
+#include "core/string/translation_server.h"
 #include "core/version.h"
 #include "editor/editor_node.h"
 #include "editor/editor_paths.h"
@@ -65,7 +65,7 @@ bool EditorSettings::_set(const StringName &p_name, const Variant &p_value) {
 	_THREAD_SAFE_METHOD_
 
 	bool changed = _set_only(p_name, p_value);
-	if (changed) {
+	if (changed && initialized) {
 		changed_settings.insert(p_name);
 		emit_signal(SNAME("settings_changed"));
 	}
@@ -330,6 +330,10 @@ bool EditorSettings::has_default_value(const String &p_setting) const {
 	return props[p_setting].has_default_value;
 }
 
+void EditorSettings::_set_initialized() {
+	initialized = true;
+}
+
 void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	_THREAD_SAFE_METHOD_
 // Sets up the editor setting with a default value and hint PropertyInfo.
@@ -440,6 +444,7 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 #endif
 	EDITOR_SETTING(Variant::INT, PROPERTY_HINT_ENUM, "interface/editor/font_subpixel_positioning", 1, "Disabled,Auto,One Half of a Pixel,One Quarter of a Pixel")
 	EDITOR_SETTING(Variant::BOOL, PROPERTY_HINT_NONE, "interface/editor/font_disable_embedded_bitmaps", true, "");
+	EDITOR_SETTING(Variant::BOOL, PROPERTY_HINT_NONE, "interface/editor/font_allow_msdf", true, "")
 
 	EDITOR_SETTING(Variant::STRING, PROPERTY_HINT_GLOBAL_FILE, "interface/editor/main_font", "", "*.ttf,*.otf,*.woff,*.woff2,*.pfb,*.pfm")
 	EDITOR_SETTING(Variant::STRING, PROPERTY_HINT_GLOBAL_FILE, "interface/editor/main_font_bold", "", "*.ttf,*.otf,*.woff,*.woff2,*.pfb,*.pfm")
@@ -447,6 +452,7 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	_initial_set("interface/editor/separate_distraction_mode", false);
 	_initial_set("interface/editor/automatically_open_screenshots", true);
 	EDITOR_SETTING_USAGE(Variant::BOOL, PROPERTY_HINT_NONE, "interface/editor/single_window_mode", false, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED)
+	_initial_set("interface/editor/remember_window_size_and_position", true);
 	_initial_set("interface/editor/mouse_extra_buttons_navigate_history", true);
 	_initial_set("interface/editor/save_each_scene_on_quit", true); // Regression
 	EDITOR_SETTING(Variant::BOOL, PROPERTY_HINT_NONE, "interface/editor/save_on_focus_loss", false, "")
@@ -1926,7 +1932,5 @@ EditorSettings::EditorSettings() {
 	last_order = 0;
 
 	_load_defaults();
-}
-
-EditorSettings::~EditorSettings() {
+	callable_mp(this, &EditorSettings::_set_initialized).call_deferred();
 }

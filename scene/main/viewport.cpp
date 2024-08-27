@@ -1511,6 +1511,7 @@ void Viewport::_gui_show_tooltip() {
 		r.size *= win_scale;
 		vr = window->get_usable_parent_rect();
 	}
+	r.size = r.size.ceil();
 	r.size = r.size.min(panel->get_max_size());
 
 	if (r.size.x + r.position.x > vr.size.x + vr.position.x) {
@@ -1932,7 +1933,12 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 					}
 				}
 
-				if (!is_tooltip_shown && over->can_process()) {
+				// If the tooltip timer isn't running, start it.
+				// Otherwise, only reset the timer if the mouse has moved more than 5 pixels.
+				if (!is_tooltip_shown && over->can_process() &&
+						(gui.tooltip_timer.is_null() ||
+								Math::is_zero_approx(gui.tooltip_timer->get_time_left()) ||
+								mm->get_relative().length() > 5.0)) {
 					if (gui.tooltip_timer.is_valid()) {
 						gui.tooltip_timer->release_connections();
 						gui.tooltip_timer = Ref<SceneTreeTimer>();
@@ -5024,6 +5030,13 @@ Viewport::Viewport() {
 #endif // _3D_DISABLED
 
 	set_sdf_oversize(sdf_oversize); // Set to server.
+
+	// Physics interpolation mode for viewports is a special case.
+	// Typically viewports will be housed within Controls,
+	// and Controls default to PHYSICS_INTERPOLATION_MODE_OFF.
+	// Viewports can thus inherit physics interpolation OFF, which is unexpected.
+	// Setting to ON allows each viewport to have a fresh interpolation state.
+	set_physics_interpolation_mode(Node::PHYSICS_INTERPOLATION_MODE_ON);
 }
 
 Viewport::~Viewport() {
@@ -5062,6 +5075,7 @@ void SubViewport::_internal_set_size(const Size2i &p_size, bool p_force) {
 
 	if (c) {
 		c->update_minimum_size();
+		c->queue_redraw();
 	}
 }
 

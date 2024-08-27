@@ -586,11 +586,7 @@ void ShaderData::get_shader_uniform_list(List<PropertyInfo> *p_param_list) const
 		if (E.value.scope != ShaderLanguage::ShaderNode::Uniform::SCOPE_LOCAL) {
 			continue;
 		}
-		if (E.value.texture_order >= 0) {
-			filtered_uniforms.push_back(Pair<StringName, int>(E.key, E.value.texture_order + 100000));
-		} else {
-			filtered_uniforms.push_back(Pair<StringName, int>(E.key, E.value.order));
-		}
+		filtered_uniforms.push_back(Pair<StringName, int>(E.key, E.value.prop_order));
 	}
 	int uniform_count = filtered_uniforms.size();
 	sorter.sort(filtered_uniforms.ptr(), uniform_count);
@@ -640,7 +636,7 @@ bool ShaderData::is_parameter_texture(const StringName &p_param) const {
 		return false;
 	}
 
-	return uniforms[p_param].texture_order >= 0;
+	return uniforms[p_param].is_texture();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -719,7 +715,7 @@ void MaterialData::update_uniform_buffer(const HashMap<StringName, ShaderLanguag
 	bool uses_global_buffer = false;
 
 	for (const KeyValue<StringName, ShaderLanguage::ShaderNode::Uniform> &E : p_uniforms) {
-		if (E.value.order < 0) {
+		if (E.value.is_texture()) {
 			continue; // texture, does not go here
 		}
 
@@ -1367,6 +1363,7 @@ MaterialStorage::MaterialStorage() {
 		actions.render_mode_defines["ambient_light_disabled"] = "#define AMBIENT_LIGHT_DISABLED\n";
 		actions.render_mode_defines["shadow_to_opacity"] = "#define USE_SHADOW_TO_OPACITY\n";
 		actions.render_mode_defines["unshaded"] = "#define MODE_UNSHADED\n";
+		actions.render_mode_defines["vertex_lighting"] = "#define USE_VERTEX_LIGHTING\n";
 		actions.render_mode_defines["fog_disabled"] = "#define FOG_DISABLED\n";
 
 		actions.default_filter = ShaderLanguage::FILTER_LINEAR_MIPMAP;
@@ -2862,6 +2859,7 @@ void SceneShaderData::set_code(const String &p_code) {
 	wireframe = false;
 
 	unshaded = false;
+	vertex_lighting = false;
 	uses_vertex = false;
 	uses_position = false;
 	uses_sss = false;
@@ -2924,6 +2922,11 @@ void SceneShaderData::set_code(const String &p_code) {
 	actions.render_mode_values["cull_back"] = Pair<int *, int>(&cull_modei, CULL_BACK);
 
 	actions.render_mode_flags["unshaded"] = &unshaded;
+	actions.render_mode_flags["vertex_lighting"] = &vertex_lighting;
+	bool force_vertex_lighting = GLOBAL_GET("rendering/shading/overrides/force_vertex_shading");
+	if (force_vertex_lighting) {
+		actions.render_mode_flags["vertex_lighting"] = &force_vertex_lighting;
+	}
 	actions.render_mode_flags["wireframe"] = &wireframe;
 	actions.render_mode_flags["particle_trails"] = &uses_particle_trails;
 	actions.render_mode_flags["world_vertex_coords"] = &uses_world_coordinates;

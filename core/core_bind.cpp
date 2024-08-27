@@ -692,6 +692,7 @@ void OS::_bind_methods() {
 	BIND_ENUM_CONSTANT(RENDERING_DRIVER_VULKAN);
 	BIND_ENUM_CONSTANT(RENDERING_DRIVER_OPENGL3);
 	BIND_ENUM_CONSTANT(RENDERING_DRIVER_D3D12);
+	BIND_ENUM_CONSTANT(RENDERING_DRIVER_METAL);
 
 	BIND_ENUM_CONSTANT(SYSTEM_DIR_DESKTOP);
 	BIND_ENUM_CONSTANT(SYSTEM_DIR_DCIM);
@@ -1440,6 +1441,14 @@ TypedArray<Dictionary> ClassDB::class_get_property_list(const StringName &p_clas
 	return ret;
 }
 
+StringName ClassDB::class_get_property_getter(const StringName &p_class, const StringName &p_property) {
+	return ::ClassDB::get_property_getter(p_class, p_property);
+}
+
+StringName ClassDB::class_get_property_setter(const StringName &p_class, const StringName &p_property) {
+	return ::ClassDB::get_property_setter(p_class, p_property);
+}
+
 Variant ClassDB::class_get_property(Object *p_object, const StringName &p_property) const {
 	Variant ret;
 	::ClassDB::get_property(p_object, p_property, ret);
@@ -1490,6 +1499,23 @@ TypedArray<Dictionary> ClassDB::class_get_method_list(const StringName &p_class,
 	}
 
 	return ret;
+}
+
+Variant ClassDB::class_call_static_method(const Variant **p_arguments, int p_argcount, Callable::CallError &r_call_error) {
+	if (p_argcount < 2) {
+		r_call_error.error = Callable::CallError::CALL_ERROR_TOO_FEW_ARGUMENTS;
+		return Variant::NIL;
+	}
+	if (!p_arguments[0]->is_string() || !p_arguments[1]->is_string()) {
+		r_call_error.error = Callable::CallError::CALL_ERROR_INVALID_ARGUMENT;
+		return Variant::NIL;
+	}
+	StringName class_ = *p_arguments[0];
+	StringName method = *p_arguments[1];
+	const MethodBind *bind = ::ClassDB::get_method(class_, method);
+	ERR_FAIL_NULL_V_MSG(bind, Variant::NIL, "Cannot find static method.");
+	ERR_FAIL_COND_V_MSG(!bind->is_static(), Variant::NIL, "Method is not static.");
+	return bind->call(nullptr, p_arguments + 2, p_argcount - 2, r_call_error);
 }
 
 PackedStringArray ClassDB::class_get_integer_constant_list(const StringName &p_class, bool p_no_inheritance) const {
@@ -1601,6 +1627,8 @@ void ClassDB::_bind_methods() {
 	::ClassDB::bind_method(D_METHOD("class_get_signal_list", "class", "no_inheritance"), &ClassDB::class_get_signal_list, DEFVAL(false));
 
 	::ClassDB::bind_method(D_METHOD("class_get_property_list", "class", "no_inheritance"), &ClassDB::class_get_property_list, DEFVAL(false));
+	::ClassDB::bind_method(D_METHOD("class_get_property_getter", "class", "property"), &ClassDB::class_get_property_getter);
+	::ClassDB::bind_method(D_METHOD("class_get_property_setter", "class", "property"), &ClassDB::class_get_property_setter);
 	::ClassDB::bind_method(D_METHOD("class_get_property", "object", "property"), &ClassDB::class_get_property);
 	::ClassDB::bind_method(D_METHOD("class_set_property", "object", "property", "value"), &ClassDB::class_set_property);
 
@@ -1611,6 +1639,8 @@ void ClassDB::_bind_methods() {
 	::ClassDB::bind_method(D_METHOD("class_get_method_argument_count", "class", "method", "no_inheritance"), &ClassDB::class_get_method_argument_count, DEFVAL(false));
 
 	::ClassDB::bind_method(D_METHOD("class_get_method_list", "class", "no_inheritance"), &ClassDB::class_get_method_list, DEFVAL(false));
+
+	::ClassDB::bind_vararg_method(METHOD_FLAGS_DEFAULT, "class_call_static_method", &ClassDB::class_call_static_method, MethodInfo("class_call_static_method", PropertyInfo(Variant::STRING_NAME, "class"), PropertyInfo(Variant::STRING_NAME, "method")));
 
 	::ClassDB::bind_method(D_METHOD("class_get_integer_constant_list", "class", "no_inheritance"), &ClassDB::class_get_integer_constant_list, DEFVAL(false));
 

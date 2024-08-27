@@ -2017,6 +2017,7 @@ void FBXDocument::_process_mesh_instances(Ref<FBXState> p_state, Node *p_scene_r
 		ERR_CONTINUE_MSG(skeleton == nullptr, vformat("Unable to find Skeleton for node %d skin %d", node_i, skin_i));
 
 		mi->get_parent()->remove_child(mi);
+		mi->set_owner(nullptr);
 		skeleton->add_child(mi, true);
 		mi->set_owner(skeleton->get_owner());
 
@@ -2112,9 +2113,6 @@ Error FBXDocument::_parse(Ref<FBXState> p_state, String p_path, Ref<FileAccess> 
 	ERR_FAIL_COND_V(err != OK, err);
 
 	return OK;
-}
-
-void FBXDocument::_bind_methods() {
 }
 
 Node *FBXDocument::generate_scene(Ref<GLTFState> p_state, float p_bake_fps, bool p_trimming, bool p_remove_immutable_tracks) {
